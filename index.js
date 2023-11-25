@@ -34,7 +34,7 @@ const parcelBookingCollection = database.collection("parcelBooking");
 
 
 
-// user related api:
+// user related api:--------------------------------------------------------------------------------------
 
 //for book a parcel page
 app.post('/parcel-booking', async(req,res) => {
@@ -87,6 +87,14 @@ app.patch('/parcel-update/:id', async(req,res)=>{
     }
 
     const result = await parcelBookingCollection.updateOne(filter,updateDoc)
+    res.send(result)
+})
+
+//user will can delete her parcel in thi api
+app.delete('/delete-parcel/:id', async(req,res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)}
+    const result = await parcelBookingCollection.deleteOne(query)
     res.send(result)
 })
 
