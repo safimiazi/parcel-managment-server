@@ -12,7 +12,7 @@ app.use(express.json())
 
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.USER_DB}:${process.env.PASS_BD}@cluster0.uinjrty.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -50,6 +50,47 @@ app.get("/my-parcel", async(req,res)=>{
     const cursor = await parcelBookingCollection.find().toArray()
     res.send(cursor)
 })
+
+//get single data for update parcel page
+app.get("/parcel-update/:id", async(req,res) => {
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id)}
+    const result = await parcelBookingCollection.findOne(query)
+    res.send(result)
+})
+
+//patch the updated data
+
+app.patch('/parcel-update/:id', async(req,res)=>{
+    const id = req.params.id;
+    const UpdatedData = req.body;
+    const filter = { _id: new ObjectId(id)}
+
+    const updateDoc = {
+        $set: {
+
+            name:UpdatedData.name,
+            email: UpdatedData.email,
+            phone: UpdatedData.phone,
+            parcelType:UpdatedData.parcelType,
+            parcelDeliveryAddress:UpdatedData.parcelDeliveryAddress,
+            deliveryDate:UpdatedData.deliveryDate,
+            bookingDate:UpdatedData.bookingDate,
+            deliveryAddressLatitude:UpdatedData.deliveryAddressLatitude,
+            deliveryAddressLongitude:UpdatedData.deliveryAddressLongitude,
+            receiverName:UpdatedData.receiverName,
+            receiverMobileNumber:UpdatedData.receiverMobileNumber,
+            parcelWeight:UpdatedData.parcelWeight,
+            price: UpdatedData.price,
+            status:UpdatedData.status
+        }
+    }
+
+    const result = await parcelBookingCollection.updateOne(filter,updateDoc)
+    res.send(result)
+})
+
+
 
 
 
