@@ -31,6 +31,36 @@ async function run() {
 
 const database = client.db('parcelDB')
 const parcelBookingCollection = database.collection("parcelBooking");
+const userCollection = database.collection("users");
+
+
+//when user register then create a user collection
+app.post('/create-user', async(req,res) => {
+    const data = req.body;
+    const result = await userCollection.insertOne(data)
+    res.send(result)
+})
+
+app.get("/get-user", async(req,res)=>{
+    const result = await userCollection.find().toArray()
+    res.send(result)
+})
+
+app.patch('/update-user-photo/:id', async(req,res)=>{
+    const id = req.params.id;
+    const UpdatedData = req.body;
+    const query = { _id: new ObjectId(id)}
+    const updateDoc = {
+        $set: {
+            photo: UpdatedData.photo
+        }
+    }
+    const result = await userCollection.updateOne(query,updateDoc)
+    res.send(result)
+})
+
+
+
 
 
 
@@ -95,6 +125,25 @@ app.delete('/delete-parcel/:id', async(req,res) => {
     const id = req.params.id;
     const query = {_id: new ObjectId(id)}
     const result = await parcelBookingCollection.deleteOne(query)
+    res.send(result)
+})
+
+
+
+
+//admin related api:---------------------------------------------------------------------------------------------
+app.get('/get-all-users', async(req,res)=> {
+    const result = await userCollection.find().toArray()
+    res.send(result)
+})
+
+app.get('/get-all-parcel', async(req,res)=>{
+    const result = await parcelBookingCollection.find().toArray()
+    res.send(result)
+})
+
+app.get('/all-user', async(req,res)=>{
+    const result = await userCollection.find().toArray()
     res.send(result)
 })
 
