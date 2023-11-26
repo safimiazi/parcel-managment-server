@@ -76,8 +76,10 @@ app.post('/parcel-booking', async(req,res) => {
 })
 
 //for get the data of my parcel page
-app.get("/my-parcel", async(req,res)=>{
-    const cursor = await parcelBookingCollection.find().toArray()
+app.get("/my-parcel/:email", async(req,res)=>{
+    const data = req.params.email
+    const query = {email: data}
+    const cursor = await parcelBookingCollection.find(query).toArray()
     res.send(cursor)
 })
 
@@ -128,6 +130,34 @@ app.delete('/delete-parcel/:id', async(req,res) => {
     res.send(result)
 })
 
+app.patch('/add-phone-no/:email', async(req,res)=> {
+    const email = req.params.email;
+    const data = req.body;
+    console.log(email);
+    const filter = {email: email}
+    const options = { upsert: true };
+const updateDoc = {
+    $set: {
+        phone: data.phone
+    },
+    $inc: {
+        book: 1
+    }
+}
+
+const result = await userCollection.updateOne(filter,updateDoc, options)
+res.send(result)
+})
+
+app.get('/get-filter-data', async(req, res)=>{
+    const data =req.query.email
+    const status = req.query.status
+
+    const query = {email: data, status: status}
+    const result = await parcelBookingCollection.find(query).toArray()
+    res.send(result)
+})
+
 
 
 
@@ -144,6 +174,62 @@ app.get('/get-all-parcel', async(req,res)=>{
 
 app.get('/all-user', async(req,res)=>{
     const result = await userCollection.find().toArray()
+    res.send(result)
+})
+
+app.get('/all-delivery-men', async(req,res)=>{
+    const query = { role : "deliveryMan"}
+    const result = await userCollection.find(query).toArray()
+    res.send(result)
+})
+
+app.patch('/make-delivery-man/:id', async(req,res)=>{
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id)}
+    const updateDoc = {
+        $set: {
+            role: "deliveryMan"
+        }
+    }
+    const result = await userCollection.updateOne(query, updateDoc)
+    res.send(result)
+})
+
+
+app.patch('/make-admin/:id', async(req,res)=>{
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id)}
+    const updateDoc = {
+        $set: {
+            role: "admin"
+        }
+    }
+    const result = await userCollection.updateOne(query, updateDoc)
+    res.send(result)
+})
+
+app.get('/get-all-delivery-man', async(req,res)=> {
+    const query = {role: "deliveryMan"}
+    const result = await userCollection.find(query).toArray()
+    res.send(result)
+})
+
+app.patch('/select-delivery-man/:id', async(req,res)=>{
+    const id = req.params.id;
+    const data = req.body;
+    console.log(data);
+    const query = {_id: new ObjectId(id)}
+    const options = { upsert: true };
+    const updateDoc = {
+        $set: {
+            status: data.status,
+            approxDeliveryDate: data.approxDeliveryDate,
+            deliveryManId: data.deliveryManId
+
+        }
+    }
+
+    const result = await parcelBookingCollection.updateOne(query, updateDoc, options)
     res.send(result)
 })
 
