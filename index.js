@@ -3,6 +3,7 @@ const cors = require('cors');
 const port = process.env.PORT || 5000;
 const app = express()
 require('dotenv').config()
+var jwt = require('jsonwebtoken');
 
 //middleware
 app.use(cors())
@@ -34,7 +35,66 @@ const parcelBookingCollection = database.collection("parcelBooking");
 const userCollection = database.collection("users");
 
 
-//when user register then create a user collection
+//jwt related api-----------------------------------------------------------
+app.post('/jwt', async(req,res)=>{
+    const user = req.body;
+    const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: '1h'
+    })
+    res.send({token});
+})
+
+//middleware:
+const verifyToken = (req, res, next) => {
+    console.log("inside verify token", req.headers.authorization);
+    if(!req.headers.authorization){
+        return res.status(401).send({message: 'forbidden access'})
+    }
+    const token = req.headers.authorization.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
+        if(err){
+            return res.status(401).send({message: 'forbidden access'})
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
+
+//admin
+app.get('/user/admin/:email', verifyToken, async (req, res) => {
+    const email = req.params.email;
+    if(email !== req.decoded.email){
+        return res.status(403).send({message: 'unauthorized access'})
+    }
+    const query = {email: email}
+    const user = await userCollection.findOne(query)
+    let admin = false;
+    if(user){
+        admin = user?.role === 'admin';
+    }
+    res.send({admin})
+})
+
+//deliveryMan
+app.get('/user/delivery-man/:email',verifyToken, async(req,res)=>{
+    const email = req.params.email;
+    if(email !== req.decoded.email){
+        return res.status(403).send({message: 'unauthorized access'})
+    }
+    const query = {email: email}
+    const user = await userCollection.findOne(query)
+    let deliveryMan = false;
+    if(user){
+        deliveryMan = user?.role === 'deliveryMan';
+    }
+    res.send({deliveryMan})
+})
+
+
+
+
+
+//when user register then create a user collection------------------------
 app.post('/create-user', async(req,res) => {
     const data = req.body;
     const result = await userCollection.insertOne(data)
@@ -47,8 +107,9 @@ app.get("/get-user", async(req,res)=>{
 })
 
 app.patch('/update-user-photo/:id', async(req,res)=>{
-    const id = req.params.id;
+    const id = req?.params?.id;
     const UpdatedData = req.body;
+    console.log(UpdatedData, id);
     const query = { _id: new ObjectId(id)}
     const updateDoc = {
         $set: {
@@ -74,6 +135,14 @@ app.post('/parcel-booking', async(req,res) => {
     res.send(result)
 
 })
+
+//google login:
+app.post('/post-google-info', async(req,res) => {
+    const data = req.body;
+    console.log(data);
+    const result = await userCollection.insertOne(data);
+    res.send(result)
+}) 
 
 //for get the data of my parcel page
 app.get("/my-parcel/:email", async(req,res)=>{
@@ -162,28 +231,28 @@ app.get('/get-filter-data', async(req, res)=>{
 
 
 //admin related api:---------------------------------------------------------------------------------------------
-app.get('/get-all-users', async(req,res)=> {
+app.get('/get-all-users', verifyToken, async(req,res)=> {
     const result = await userCollection.find().toArray()
     res.send(result)
 })
 
-app.get('/get-all-parcel', async(req,res)=>{
+app.get('/get-all-parcel',verifyToken,  async(req,res)=>{
     const result = await parcelBookingCollection.find().toArray()
     res.send(result)
 })
 
-app.get('/all-user', async(req,res)=>{
+app.get('/all-user',verifyToken, async(req,res)=>{
     const result = await userCollection.find().toArray()
     res.send(result)
 })
 
-app.get('/all-delivery-men', async(req,res)=>{
+app.get('/all-delivery-men',verifyToken, async(req,res)=>{
     const query = { role : "deliveryMan"}
     const result = await userCollection.find(query).toArray()
     res.send(result)
 })
 
-app.patch('/make-delivery-man/:id', async(req,res)=>{
+app.patch('/make-delivery-man/:id',verifyToken, async(req,res)=>{
     const id = req.params.id;
     const query = { _id: new ObjectId(id)}
     const updateDoc = {
@@ -196,7 +265,7 @@ app.patch('/make-delivery-man/:id', async(req,res)=>{
 })
 
 
-app.patch('/make-admin/:id', async(req,res)=>{
+app.patch('/make-admin/:id',verifyToken, async(req,res)=>{
     const id = req.params.id;
     const query = { _id: new ObjectId(id)}
     const updateDoc = {
@@ -208,13 +277,13 @@ app.patch('/make-admin/:id', async(req,res)=>{
     res.send(result)
 })
 
-app.get('/get-all-delivery-man', async(req,res)=> {
+app.get('/get-all-delivery-man',verifyToken, async(req,res)=> {
     const query = {role: "deliveryMan"}
     const result = await userCollection.find(query).toArray()
     res.send(result)
 })
 
-app.patch('/select-delivery-man/:id', async(req,res)=>{
+app.patch('/select-delivery-man/:id',verifyToken, async(req,res)=>{
     const id = req.params.id;
     const data = req.body;
     console.log(data);
@@ -232,6 +301,48 @@ app.patch('/select-delivery-man/:id', async(req,res)=>{
     const result = await parcelBookingCollection.updateOne(query, updateDoc, options)
     res.send(result)
 })
+
+
+
+
+//delivery man related api----------------------------------------------------------------
+
+
+app.get('/get-delivery-list/:email', async(req,res)=>{
+    const userEmail = req.params.email;
+    const query = {deliveryManId: userEmail}
+    const result = await parcelBookingCollection.find(query).toArray()
+      res.send(result)
+})
+
+
+app.patch('/cancel-status/:id', async(req,res)=>{
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)}
+    const updateDoc = {
+        $set: {
+            status: "cancelled"
+        }
+    }
+
+    const result = await parcelBookingCollection.updateOne(query, updateDoc)
+    res.send(result)
+})
+
+app.patch('/deliver-status/:id', async(req,res)=>{
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)}
+    const updateDoc = {
+        $set: {
+            status: "delivered"
+        }
+    }
+
+    const result = await parcelBookingCollection.updateOne(query, updateDoc)
+    res.send(result)
+})
+
+
 
 
 
