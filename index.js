@@ -33,6 +33,7 @@ async function run() {
 const database = client.db('parcelDB')
 const parcelBookingCollection = database.collection("parcelBooking");
 const userCollection = database.collection("users");
+const reviewCollection = database.collection('review')
 
 
 //jwt related api-----------------------------------------------------------
@@ -126,6 +127,18 @@ app.patch('/update-user-photo/:id', async(req,res)=>{
 
 
 // user related api:--------------------------------------------------------------------------------------
+
+
+//for review:
+app.post('/post-review', async(req,res)=>{
+    const data =req.body;
+    const result = await reviewCollection.insertOne(data)
+    res.send(result)
+    
+})
+
+
+
 
 //for book a parcel page
 app.post('/parcel-booking', async(req,res) => {
@@ -306,6 +319,15 @@ app.patch('/select-delivery-man/:id',verifyToken, async(req,res)=>{
 
 
 //delivery man related api----------------------------------------------------------------
+
+//get review: 
+app.get('/get-my-review/:email', async(req,res)=>{
+    const email = req.params.email;
+    const  query = {deliveryManId: email}
+    const result = await reviewCollection.find(query).toArray()
+    res.send(result)
+})
+
 
 
 app.get('/get-delivery-list/:email', async(req,res)=>{
