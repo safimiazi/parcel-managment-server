@@ -36,6 +36,84 @@ const userCollection = database.collection("users");
 const reviewCollection = database.collection('review')
 
 
+//home related api---------------------------------------------------------
+app.get('/statistics', async(req, res)=> {
+    const numberOfUser = await userCollection.estimatedDocumentCount({role:'user'})
+    const numberOfParcelBook = await parcelBookingCollection.estimatedDocumentCount({})
+    const numberOfDelivered = await parcelBookingCollection.countDocuments({status:'delivered'})
+    res.send({
+        numberOfUser,
+        numberOfParcelBook,
+        numberOfDelivered
+    })
+})
+
+app.get('/top-delivery-men', async(req,res)=>{
+    const topDeliveryMen = await parcelBookingCollection.aggregate([
+        {
+          $match: { status: 'delivered', deliveryManId: { $ne: null } }
+        },
+        {
+          $group: {
+            _id: '$deliveryManId',
+            totalParcelsDelivered: { $sum: 1 }
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: 'email',
+            as: 'deliveryManDetails'
+          }
+        },
+        {
+          $unwind: '$deliveryManDetails'
+        },
+        {
+          $lookup: {
+            from: 'review',
+            localField: 'deliveryManDetails.email',
+            foreignField: 'deliveryManId',
+            as: 'reviews'
+          }
+        },
+        {
+            $unwind: "$reviews"
+          },
+          {
+            $group: {
+              _id: "$_id",
+              averageRating: { $avg: { $toInt: "$reviews.rating" } },
+              totalParcelsDelivered: { $first: "$totalParcelsDelivered" },
+              deliveryManDetails: { $first: "$deliveryManDetails" }
+            }
+          },
+          {
+            $project: {
+              _id: 0,
+              userId: "$deliveryManDetails.userId",
+              name: "$deliveryManDetails.name",
+              email: "$deliveryManDetails.email",
+              photo: "$deliveryManDetails.photo",
+              role: "$deliveryManDetails.role",
+              averageRating: 1,
+              totalParcelsDelivered: 1
+            }
+          },
+        {
+          $sort: { totalParcelsDelivered: -1, averageRating: -1 }
+        },
+        {
+          $limit: 5
+        }
+      ]).toArray();
+
+      res.send(topDeliveryMen)
+})
+
+
+
 //jwt related api-----------------------------------------------------------
 app.post('/jwt', async(req,res)=>{
     const user = req.body;
